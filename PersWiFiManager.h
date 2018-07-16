@@ -35,11 +35,14 @@ class PersWiFiManager {
 
     void onAp(WiFiChangeHandlerFunction fn);
 
+    void checkNetworkCreds();
+
   private:
     ESP8266WebServer * _server;
     DNSServer * _dnsServer;
     String _apSsid, _apPass;
-
+    String _wifiCredsSSID, _wifiCredsPass;
+    unsigned long _networkChangeTimer;
     bool _connectNonBlock;
     unsigned long _connectStartTime;
 

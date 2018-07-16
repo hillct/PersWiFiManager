@@ -1,4 +1,4 @@
-/* PersWiFiManager
+/* PersAsyncWiFiManager
    version 3.0.1
    https://r-downing.github.io/PersWiFiManager/
 */
@@ -13,6 +13,8 @@ PersWiFiManager::PersWiFiManager(ESP8266WebServer& s, DNSServer& d) {
   _server = &s;
   _dnsServer = &d;
   _apPass = "";
+  _wifiCredsSSID = "";
+  _wifiCredsPass = "";
 } //PersWiFiManager
 
 bool PersWiFiManager::attemptConnection(const String& ssid, const String& pass) {
@@ -109,9 +111,19 @@ void PersWiFiManager::setupWiFiHandlers() {
     }
   }); //_server->on /wifi/wps
 
-  _server->on("/wifi/connect", [&]() {
-    _server->send(200, "text/html", "connecting...");
-    attemptConnection(_server->arg("n"), _server->arg("p"));
+  _server->on("/wifi/connect", HTTP_POST, [&](AsyncWebServerRequest *request){
+    request->send(200, "text/html", "connecting...");
+    if(request->hasParam("n", true) && request->hasParam("p", true)){
+      AsyncWebParameter* paramN = request->getParam("n");
+//      AsyncWebParameter* paramN = request->getParam("n", true);
+      AsyncWebParameter* paramP = request->getParam("p");
+//      AsyncWebParameter* paramP = request->getParam("p", true);
+      _wifiCredsSSID = paramN->value();
+      _wifiCredsPass = paramP->value();
+      _networkChangeTimer = millis();
+//      attemptConnection(paramN->value(), paramP->value());
+    }
+//    attemptConnection(request->arg("n"), request->arg("p"));
   }); //_server->on /wifi/connect
 
   _server->on("/wifi/ap", [&](){
@@ -132,6 +144,18 @@ void PersWiFiManager::setupWiFiHandlers() {
 #endif
 
 }//setupWiFiHandlers
+
+void PersWiFiManager::checkNetworkCreds(){
+// This is where we check for updated credentials and apply them if needed
+  if(_wifiCredsSSID.length() > 0 & _wifiCredsPass.length() > 0){
+    if(millis() - _networkChangeTimer >= 500UL){
+      attemptConnection( _wifiCredsSSID.c_str(), _wifiCredsPass.c_str());
+      _wifiCredsSSID = "";
+      _wifiCredsPass = "";
+      _networkChangeTimer = 0UL;
+    }
+  }
+}
 
 bool PersWiFiManager::begin(const String& ssid, const String& pass) {
   setupWiFiHandlers();
